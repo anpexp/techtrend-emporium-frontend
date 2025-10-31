@@ -1,20 +1,33 @@
-import type { ReactNode } from 'react'
+import React from "react";
 
-interface ButtonProps {
-  children: ReactNode
-  onClick?: () => void
-  variant?: 'primary' | 'secondary'
-}
+export type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: "primary" | "ghost" | "link";
+  size?: "sm" | "md" | "lg";
+};
 
-export default function Button({ children, onClick, variant = 'primary' }: ButtonProps) {
-  const baseClasses = "px-4 py-2 rounded-lg font-semibold transition-colors"
-  const variantClasses = variant === 'primary'
-    ? "bg-blue-600 hover:bg-blue-700 text-white"
-    : "bg-gray-200 hover:bg-gray-300 text-gray-800"
+const sizes: Record<NonNullable<ButtonProps["size"]>, string> = {
+  sm: "px-2.5 py-1.5 text-sm rounded-md",
+  md: "px-3 py-2 text-sm rounded-lg",
+  lg: "px-4 py-2 text-base rounded-xl",
+};
 
+const variants: Record<NonNullable<ButtonProps["variant"]>, string> = {
+  primary:
+    "bg-neutral-900 text-white hover:bg-neutral-800 focus:ring-2 focus:ring-black/20",
+  ghost: "hover:bg-neutral-100 focus:ring-2 focus:ring-black/20",
+  link: "underline underline-offset-2 hover:opacity-80",
+};
+
+export default function Button({
+  variant = "primary",
+  size = "md",
+  className = "",
+  ...rest
+}: ButtonProps) {
   return (
-    <button className={`${baseClasses} ${variantClasses}`} onClick={onClick}>
-      {children}
-    </button>
-  )
+    <button
+      className={`${sizes[size]} ${variants[variant]} ${className}`}
+      {...rest}
+    />
+  );
 }
