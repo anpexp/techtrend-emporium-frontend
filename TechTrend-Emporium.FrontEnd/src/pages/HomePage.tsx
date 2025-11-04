@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import LandingPage from "../templates/LandingPage";
 import type { Category } from "../components/molecules/CategoryGrid";
 import type { Product } from "../components/molecules/ProductGrid";
+import { CategoryService } from "../lib/CategoryService";
 
 export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -10,12 +11,27 @@ export default function HomePage() {
   const [best, setBest] = useState<Product[]>([]);
 
   useEffect(() => {
-    // TODO: Replace with real API calls
-    setCategories([
-      { id: "1", name: "Food", imageUrl: "https://picsum.photos/400/300?food" },
-      { id: "2", name: "Itar", imageUrl: "https://picsum.photos/400/300?itar" },
-      { id: "3", name: "Tasbeeh", imageUrl: "https://picsum.photos/400/300?tasbeeh" },
-    ]);
+    // Fetch categories from API
+    const fetchCategories = async () => {
+      try {
+        const apiCategories = await CategoryService.getCategories();
+        // Map API response to component format
+        const mappedCategories = apiCategories.map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+          imageUrl: `https://picsum.photos/400/300?${cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-')}`
+        }));
+        setCategories(mappedCategories);
+      } catch (err) {
+        console.error("Error fetching categories:", err);
+        // Fallback to empty array or default categories if needed
+        setCategories([]);
+      }
+    };
+
+    fetchCategories();
+
+    // TODO: Replace with real API calls for products
     setLatest([
       { id: "4", name: "New Product 1", imageUrl: "https://picsum.photos/400/300?latest1", price: 20 },
       { id: "5", name: "New Product 2", imageUrl: "https://picsum.photos/400/300?latest2", price: 25 },
