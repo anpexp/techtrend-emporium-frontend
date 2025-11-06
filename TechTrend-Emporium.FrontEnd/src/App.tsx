@@ -2,14 +2,17 @@
 import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/organisms/Header";
+import RequireAuth from "./auth/RequireAuth";
+import RequireRole from "./auth/RequireRole";
+import { useAuth } from "./auth/AuthContext";
 import type { UserLike } from "./components/molecules/UserDropdown";
 
 // Pages
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
-import RegisterPage from "./pages/RegisterPage";
-import EmployeePortalPage from "./pages/EmployeePortalPage";
+import RegisterPage from "./pages/RegisterPage"; // Register screen
+import EmployeePortal from "./pages/EmployeePortal";
 import CreateProductPage from "./pages/CreateProductPage";
 import CreateCategoryPage from "./pages/CreateCategoryPage";
 
@@ -53,28 +56,32 @@ function HeaderWithFavorites({
   );
 }
 
+
 export default function App() {
-  const [user, setUser] = useState<UserLike | null>(null);
+  
   const navigate = useNavigate();
   const location = useLocation();
 
-  /** Rehydrate once on mount (only accept valid roles) */
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const name = (localStorage.getItem("username") || undefined) as string | undefined;
-    const role = localStorage.getItem("role") as UserLike["role"] | null;
+  // Use the central AuthContext for user/session state (no legacy local state)
+  const { user: authUser, logout } = useAuth();
 
-    const validRole = role === "shopper" || role === "employee" || role === "admin";
-    if (token && name && validRole) {
-      setUser({ id: "u1", name, role: role! });
-    } else {
-      // Clean any stale auth that forces wrong redirects
-      localStorage.removeItem("token");
-      localStorage.removeItem("username");
-      localStorage.removeItem("role");
-      setUser(null);
-    }
-  }, []);
+  // Map AuthContext user shape to the local UserLike expected by Header
+  const user: UserLike | null = authUser
+    ? (() => {
+        const raw = (authUser.role ?? "").toString().toLowerCase();
+        // Map backend roles like 'SuperAdmin' or 'Employee' to our smaller set: shopper/employee/admin
+        let mapped: UserLike["role"] = "shopper";
+        if (raw.includes("Employee")) mapped = "employee";
+        else if (raw.includes("SuperAdmin") || raw.includes("admin")) mapped = "admin";
+
+        return {
+          id: authUser.id,
+          name: authUser.name,
+          avatarUrl: authUser.avatarUrl,
+          role: mapped,
+        };
+      })()
+    : null;
 
   /** Rehydrate on each route change (e.g., after Login writes localStorage) */
   useEffect(() => {
@@ -82,13 +89,22 @@ export default function App() {
     const name = (localStorage.getItem("username") || undefined) as string | undefined;
     const role = localStorage.getItem("role") as UserLike["role"] | null;
 
-    const validRole = role === "shopper" || role === "employee" || role === "admin";
-    if (token && name && validRole) setUser({ id: "u1", name, role: role! });
-    else setUser(null);
   }, [location.pathname]);
 
   // Header handlers
   const handleSearch = (q: string) => console.log("search:", q);
+
+  // Clear session via AuthContext and go home
+  const handleLogout = async () => {
+    await logout();
+    navigate("/", { replace: true });
+  };
+
+  // Open login/register flows
+  const handleSignIn = () => navigate("/login");
+  const handlePortal = () => navigate("/employee-portal");
+
+  // Simple stubs for header UI interactions
   const handleSelectCurrency = () => console.log("open currency selector");
   const handleLogoClick = () => navigate("/");
   const goCart = () => console.log("go to cart");
@@ -99,8 +115,9 @@ export default function App() {
   const isAdmin = !!user && user.role === "admin";
   const isShopper = !!user && user.role === "shopper";
 
-  // 🔁 IMPORTANT: Always render Home on "/" (no auto-redirect)
-  // Portal & create pages are protected below.
+  // Protect the employee portal route: only employee/admin allowed
+  const portalElement = isEmployee || isAdmin ? <EmployeePortal /> : <Navigate to="/" replace />;
+
   return (
     <FavoritesProvider>
       <HeaderWithFavorites
@@ -122,7 +139,7 @@ export default function App() {
         {/* Protected: employee/admin */}
         <Route
           path="/employee-portal"
-          element={isEmployee || isAdmin ? <EmployeePortalPage /> : <Navigate to="/" replace />}
+          element={isEmployee || isAdmin ? <EmployeePortal /> : <Navigate to="/" replace />}
         />
         <Route
           path="/create-product"

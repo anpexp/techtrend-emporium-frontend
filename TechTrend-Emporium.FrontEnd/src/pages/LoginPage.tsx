@@ -2,10 +2,10 @@ import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import Input from "../components/atoms/Input";
 import Button from "../components/atoms/Button";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const schema = z.object({
   email: z.string().email({ message: "Please enter a valid email" }),
@@ -16,52 +16,29 @@ type LoginForm = z.infer<typeof schema>;
 
 const LoginPage: React.FC = () => {
   const { login, isLoading, error } = useAuth();
-  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-
+  const location = useLocation();
+  const from = (location.state as any)?.from?.pathname;
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
   const {
     register,
     handleSubmit,
-    formState: { errors },
-  } = useForm<LoginForm>({ resolver: zodResolver(schema) });
-
-  // DEV helper: infer role from email when backend doesn't return one
-  const inferRoleFromEmail = (email: string): "shopper" | "employee" | "admin" => {
-    if (email.includes("+admin")) return "admin";
-    if (email.includes("+emp")) return "employee";
-    return "shopper";
-  };
+    formState: { errors, isValid },
+  } = useForm<LoginForm>({ resolver: zodResolver(schema), mode: "onChange" });
 
   const onSubmit = async (data: LoginForm) => {
-    const name = data.email.split("@")[0] || "user";
-    const inferredRole = inferRoleFromEmail(data.email);
-
-    // clear previous session to avoid stale role redirects
-    localStorage.removeItem("token");
-    localStorage.removeItem("username");
-    localStorage.removeItem("role");
-
     try {
-      // 1) Try real backend login
-      await login(data.email, data.password);
-    } catch {
-      // ignore error to allow DEV fallback
-    }
-
-    // 2) Ensure session keys (use backend values if present; otherwise fallback)
-    localStorage.setItem("token", localStorage.getItem("token") || "t");
-    localStorage.setItem("username", localStorage.getItem("username") || name);
-
-    // If backend didn't set role, force the inferred one (admin/employee/shopper)
-    const roleFromBackend = localStorage.getItem("role") as "shopper" | "employee" | "admin" | null;
-    const finalRole = roleFromBackend || inferredRole;
-    localStorage.setItem("role", finalRole);
-
-    // 3) Redirect by role
-    if (finalRole === "employee" || finalRole === "admin") {
-      navigate("/employee-portal", { replace: true });
-    } else {
-      navigate("/my-orders", { replace: true });
+      const res = await login(data.email, data.password, remember);
+      // Only navigate when login succeeded and the login function returned a result.
+      // If login failed, AuthContext sets `error` and we must stay on the login page
+      // so the user can see the error message.
+      if (res) {
+        const redirect = (res as any).redirectTo ?? from ?? "/";
+        navigate(redirect, { replace: true });
+      }
+    } catch (err) {
+      // login error handled by AuthContext; no additional UI action here
     }
   };
 
@@ -85,13 +62,41 @@ const LoginPage: React.FC = () => {
             <button
               type="button"
               aria-label={showPassword ? "Hide password" : "Show password"}
-              onClick={() => setShowPassword((v) => !v)}
-              className="text-sm px-2"
+              onMouseDown={() => setShowPassword(true)}
+              onMouseUp={() => setShowPassword(false)}
+              onMouseLeave={() => setShowPassword(false)}
+              onTouchStart={() => setShowPassword(true)}
+              onTouchEnd={() => setShowPassword(false)}
+              onTouchCancel={() => setShowPassword(false)}
+              className="p-2 text-neutral-600 hover:text-neutral-800"
             >
-              {showPassword ? "Hide" : "Show"}
+              {showPassword ? (
+                // eye-off (simple slash) SVG
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-5 0-9.27-3.11-11-7 1.08-2.03 2.81-3.78 4.83-4.86" />
+                  <path d="M1 1l22 22" />
+                  <path d="M9.88 9.88A3 3 0 0 0 14.12 14.12" />
+                </svg>
+              ) : (
+                // eye SVG
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              )}
             </button>
           }
         />
+
+        <label className="flex items-center mt-2 select-none">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="mr-2"
+          />
+          <span className="text-sm">Remember me</span>
+        </label>
 
         {error && (
           <div className="text-red-600 mt-2" role="alert">
@@ -99,7 +104,7 @@ const LoginPage: React.FC = () => {
           </div>
         )}
 
-        <Button type="submit" disabled={isLoading} className="mt-4 w-full">
+        <Button type="submit" disabled={!isValid || isLoading} className="mt-4 w-full">
           {isLoading ? "Logging in..." : "Login"}
         </Button>
       </form>
