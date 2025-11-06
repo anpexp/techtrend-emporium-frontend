@@ -33,7 +33,7 @@ export default function LandingPage({
       {/* Latest */}
       <section className="mt-12">
         {latest?.length ? (
-          <ProductGrid title="Our latest arrivals" products={latest} />
+          <ProductGrid title="Our latest arrivals" products={latest} withFavorites />
         ) : (
           <EmptyBlock title="No new arrivals yet" hint="Check back soon for fresh drops." />
         )}
@@ -42,7 +42,7 @@ export default function LandingPage({
       {/* Best Sellers / All Products */}
       <section className="my-12">
         {bestSellers?.length ? (
-          <ProductGrid title="Our products" products={bestSellers} />
+          <ProductGrid title="Our products" products={bestSellers} withFavorites />
         ) : (
           <EmptyBlock title="No products available" hint="We’ll restock shortly." />
         )}
@@ -60,10 +60,7 @@ function EmptyBlock({ title, hint }: { title: string; hint?: string }) {
       {/* Skeleton simple para mantener layout estable */}
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="animate-pulse rounded-lg border border-neutral-200 p-4"
-          >
+          <div key={i} className="animate-pulse rounded-lg border border-neutral-200 p-4">
             <div className="h-28 w-full rounded-md bg-neutral-200" />
             <div className="mt-3 h-4 w-3/4 rounded bg-neutral-200" />
             <div className="mt-2 h-4 w-1/2 rounded bg-neutral-200" />
