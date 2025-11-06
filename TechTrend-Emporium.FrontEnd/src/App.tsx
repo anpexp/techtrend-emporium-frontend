@@ -7,6 +7,7 @@ import RequireRole from "./auth/RequireRole";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
+import EmployeePortal from "./pages/EmployeePortal";
 
 export default function App() {
   // The AuthProvider exposes user and actions via context; App only declares routes and layout.
@@ -22,8 +23,8 @@ export default function App() {
           path="/employee-portal"
           element={
             <RequireAuth>
-              <RequireRole roles={["employee", "admin"]}>
-                <div className="p-8 text-xl">Employee portal</div>
+              <RequireRole roles={["Employee", "SuperAdmin"]}>
+                <EmployeePortal />
               </RequireRole>
             </RequireAuth>
           }

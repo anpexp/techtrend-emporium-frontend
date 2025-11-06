@@ -7,7 +7,7 @@ import SearchBar from "../../molecules/SearchBar";
 import { GuestDropdown, UserDropdown, type UserLike } from "../../molecules/UserDropdown";
 import Button from "../../atoms/Button";
 import { useAuth } from "../../../auth/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export type HeaderProps = {
   currency?: string;
@@ -42,6 +42,9 @@ export default function Header({
   const [showSearch, setShowSearch] = useState(false);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const hideNativeCart = location.pathname.startsWith("/employee-portal");
 
   const handleSignIn = () => navigate("/login");
   const handleSignUp = () => navigate("/register");
@@ -62,8 +65,12 @@ export default function Header({
           {/* Right: controls */}
           <div className="flex items-center gap-3 md:gap-4">
             <ActionIcon name="search" ariaLabel="Search" onClick={() => setShowSearch(v => !v)} />
-            <ActionIcon name="heart" ariaLabel="Wishlist" onClick={onGoToWishlist} count={wishlistCount} />
-            <ActionIcon name="cart" ariaLabel="Cart" onClick={onGoToCart} count={cartCount} />
+            {!hideNativeCart && (
+              <>
+                <ActionIcon name="heart" ariaLabel="Wishlist" onClick={onGoToWishlist} count={wishlistCount} />
+                <ActionIcon name="cart" ariaLabel="Cart" onClick={onGoToCart} count={cartCount} />
+              </>
+            )}
             {/* Account area */}
             {user ? (
               user.role === "employee" || user.role === "admin" ? (
@@ -81,7 +88,7 @@ export default function Header({
                   </Button>
                 </div>
               ) : (
-                <UserDropdown user={user} onLogout={handleLogout} onGoToPortal={handlePortal} />
+                <UserDropdown user={user as any} onLogout={handleLogout} onGoToPortal={handlePortal} />
               )
             ) : (
               <GuestDropdown onSignIn={handleSignIn} onSignUp={handleSignUp} />
