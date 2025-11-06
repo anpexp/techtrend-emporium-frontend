@@ -6,72 +6,71 @@ import type { Product } from "../components/molecules/ProductGrid";
 import { CategoryService } from "../lib/CategoryService";
 import { ProductService } from "../lib/ProductService";
 
+const isDev = import.meta.env.MODE === "development";
+
+// Productos de respaldo SOLO para desarrollo (no tocan prod)
+const DEV_FALLBACK: Product[] = [
+  { id: 101, name: "Jae Namaz",  imageUrl: "https://picsum.photos/seed/101/800/600", price: 99 },
+  { id: 102, name: "Dates",      imageUrl: "https://picsum.photos/seed/102/800/600", price: 12 },
+  { id: 103, name: "Miswak",     imageUrl: "https://picsum.photos/seed/103/800/600", price: 7 },
+  { id: 104, name: "Prayer Rug", imageUrl: "https://picsum.photos/seed/104/800/600", price: 59 },
+];
+
 export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [latest, setLatest] = useState<Product[]>([]);
   const [best, setBest] = useState<Product[]>([]);
 
   useEffect(() => {
-    // Fetch categories from API
-    const fetchCategories = async () => {
+    // Categories
+    (async () => {
       try {
         const apiCategories = await CategoryService.getCategories();
-        // Map API response to component format
-        const mappedCategories = apiCategories.map((cat) => ({
+        const mapped = (apiCategories || []).map((cat: any) => ({
           id: cat.id,
           name: cat.name,
-          imageUrl: `https://picsum.photos/400/300?${cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-')}`
+          imageUrl: `https://picsum.photos/400/300?${cat.slug || cat.name.toLowerCase().replace(/\s+/g, "-")}`,
         }));
-        setCategories(mappedCategories);
+        setCategories(mapped);
       } catch (err) {
         console.error("Error fetching categories:", err);
-        // Fallback to empty array or default categories if needed
         setCategories([]);
       }
-    };
+    })();
 
-    fetchCategories();
-
-    // Fetch latest products from API
-    const fetchLatestProducts = async () => {
+    // Latest
+    (async () => {
       try {
         const apiProducts = await ProductService.getLatestProducts();
-        // Map API response to component format
-        const mappedProducts = apiProducts.map((product) => ({
-          id: product.id,
-          name: product.title,
-          imageUrl: product.image,
-          price: product.price
+        const mapped = (apiProducts || []).map((p: any) => ({
+          id: p.id,
+          name: p.title,
+          imageUrl: p.image || `https://picsum.photos/seed/${p.id}/800/600`,
+          price: p.price,
         }));
-        setLatest(mappedProducts);
+        setLatest(mapped.length > 0 ? mapped : (isDev ? DEV_FALLBACK : []));
       } catch (err) {
         console.error("Error fetching latest products:", err);
-        // Fallback to empty array
-        setLatest([]);
+        setLatest(isDev ? DEV_FALLBACK : []);
       }
-    };
+    })();
 
-    // Fetch best products from API
-    const fetchBestProducts = async () => {
+    // Best sellers
+    (async () => {
       try {
         const apiProducts = await ProductService.getBestProducts();
-        // Map API response to component format
-        const mappedProducts = apiProducts.map((product) => ({
-          id: product.id,
-          name: product.title,
-          imageUrl: product.image,
-          price: product.price
+        const mapped = (apiProducts || []).map((p: any) => ({
+          id: p.id,
+          name: p.title,
+          imageUrl: p.image || `https://picsum.photos/seed/${p.id}/800/600`,
+          price: p.price,
         }));
-        setBest(mappedProducts);
+        setBest(mapped.length > 0 ? mapped : (isDev ? DEV_FALLBACK : []));
       } catch (err) {
         console.error("Error fetching best products:", err);
-        // Fallback to empty array
-        setBest([]);
+        setBest(isDev ? DEV_FALLBACK : []);
       }
-    };
-
-    fetchLatestProducts();
-    fetchBestProducts();
+    })();
   }, []);
 
   return (

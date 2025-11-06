@@ -1,20 +1,66 @@
 // src/App.tsx
-// react imports
-import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/organisms/Header";
 import RequireAuth from "./auth/RequireAuth";
 import RequireRole from "./auth/RequireRole";
 import { useAuth } from "./auth/AuthContext";
 import type { UserLike } from "./components/molecules/UserDropdown";
+
+// Pages
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import RegisterPage from "./pages/RegisterPage"; // Register screen
 import EmployeePortal from "./pages/EmployeePortal";
+import CreateProductPage from "./pages/CreateProductPage";
+import CreateCategoryPage from "./pages/CreateCategoryPage";
+
+// F-204
+import MyOrdersPage from "./pages/MyOrdersPage";
+import OrderDetailPage from "./pages/OrderDetailPage";
+
+// F-205
+import { FavoritesProvider, useFavorites } from "./context/FavoritesContext";
+import FavoritesPage from "./pages/FavoritesPage";
+
+/** Bridge so Header can read wishlist count from Favorites context */
+function HeaderWithFavorites({
+  user,
+  onSearch,
+  onGoToCart,
+  onGoToWishlist,
+  onSelectCurrency,
+  onLogoClick,
+}: {
+  user: UserLike | null;
+  onSearch: (q: string) => void;
+  onGoToCart: () => void;
+  onGoToWishlist: () => void;
+  onSelectCurrency: () => void;
+  onLogoClick: () => void;
+}) {
+  const { items } = useFavorites();
+  return (
+    <Header
+      currency="USD"
+      user={user}
+      cartCount={3}
+      wishlistCount={items.length}
+      onSearch={onSearch}
+      onGoToCart={onGoToCart}
+      onGoToWishlist={onGoToWishlist}
+      onSelectCurrency={onSelectCurrency}
+      onLogoClick={onLogoClick}
+    />
+  );
+}
+
 
 export default function App() {
-  // Programmatic navigation helper from react-router
+  
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Use the central AuthContext for user/session state (no legacy local state)
   const { user: authUser, logout } = useAuth();
@@ -37,7 +83,15 @@ export default function App() {
       })()
     : null;
 
-  // Header callbacks (search and account/cart actions, mocked for now)
+  /** Rehydrate on each route change (e.g., after Login writes localStorage) */
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const name = (localStorage.getItem("username") || undefined) as string | undefined;
+    const role = localStorage.getItem("role") as UserLike["role"] | null;
+
+  }, [location.pathname]);
+
+  // Header handlers
   const handleSearch = (q: string) => console.log("search:", q);
 
   // Clear session via AuthContext and go home
@@ -53,58 +107,72 @@ export default function App() {
   // Simple stubs for header UI interactions
   const handleSelectCurrency = () => console.log("open currency selector");
   const handleLogoClick = () => navigate("/");
+  const goCart = () => console.log("go to cart");
+  const goWishlist = () => navigate("/favorites");
 
   // Role helpers
-  const isEmployee = user?.role === "employee";
-  const isAdmin = user?.role === "admin";
-
-  // If an employee/admin hits "/", redirect them to the employee portal
-  const homeElement = isEmployee || isAdmin ? (
-    <Navigate to="/employee-portal" replace />
-  ) : (
-    <HomePage />
-  );
+  const isEmployee = !!user && user.role === "employee";
+  const isAdmin = !!user && user.role === "admin";
+  const isShopper = !!user && user.role === "shopper";
 
   // Protect the employee portal route: only employee/admin allowed
   const portalElement = isEmployee || isAdmin ? <EmployeePortal /> : <Navigate to="/" replace />;
 
   return (
-    <>
-      {/* Global header shared by all pages */}
-      <Header
-        currency="USD"
+    <FavoritesProvider>
+      <HeaderWithFavorites
         user={user}
-        cartCount={3}
-        wishlistCount={1}
         onSearch={handleSearch}
-        onLogout={handleLogout}
-        onSignIn={handleSignIn}
-        onGoToCart={() => console.log("go to cart")}
-        onGoToWishlist={() => console.log("go to wishlist")}
-        onGoToPortal={handlePortal}
+        onGoToCart={goCart}
+        onGoToWishlist={goWishlist}
         onSelectCurrency={handleSelectCurrency}
         onLogoClick={handleLogoClick}
       />
 
-      {/* Application routes */}
       <Routes>
-        {/* Public home (auto-redirects to portal if employee/admin) */}
-        <Route path="/" element={homeElement} />
-
-        {/* Login screen */}
+        {/* Public */}
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
-                {/* Register (Create account) */}
         <Route path="/register" element={<RegisterPage />} />
-
-        {/* Forgot password / Recovery flow */}
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-        {/* Protected employee/admin area */}
-        <Route path="/employee-portal" element={portalElement} />
+        {/* Protected: employee/admin */}
+        <Route
+          path="/employee-portal"
+          element={isEmployee || isAdmin ? <EmployeePortal /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/create-product"
+          element={isEmployee || isAdmin ? <CreateProductPage /> : <Navigate to="/" replace />}
+        />
+        <Route
+          path="/create-category"
+          element={isEmployee || isAdmin ? <CreateCategoryPage /> : <Navigate to="/" replace />}
+        />
 
-        {/* Fallback: any unknown path goes to home */}
+        {/* F-205 */}
+        <Route path="/favorites" element={<FavoritesPage />} />
+
+        {/* Placeholder product detail */}
+        <Route path="/product/:id" element={<div className="p-6">TODO: Product detail</div>} />
+
+        {/* F-204: shopper-only */}
+        <Route
+          path="/my-orders"
+          element={
+            isShopper ? <MyOrdersPage /> : user ? <Navigate to="/" replace /> : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/my-orders/:orderId"
+          element={
+            isShopper ? <OrderDetailPage /> : user ? <Navigate to="/" replace /> : <Navigate to="/login" replace />
+          }
+        />
+
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+    </FavoritesProvider>
   );
 }

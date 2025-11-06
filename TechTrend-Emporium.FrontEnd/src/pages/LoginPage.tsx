@@ -98,7 +98,11 @@ const LoginPage: React.FC = () => {
           <span className="text-sm">Remember me</span>
         </label>
 
-        {error && <div className="text-red-600 mt-2" role="alert">{error}</div>}
+        {error && (
+          <div className="text-red-600 mt-2" role="alert">
+            {error}
+          </div>
+        )}
 
         <Button type="submit" disabled={!isValid || isLoading} className="mt-4 w-full">
           {isLoading ? "Logging in..." : "Login"}

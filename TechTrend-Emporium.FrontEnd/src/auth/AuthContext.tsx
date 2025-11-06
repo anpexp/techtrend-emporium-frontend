@@ -1,14 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { authFetch } from "../lib/api";
+import type { UserLike as User } from "../types/user";
 
-export type User = {
-  id: string;
-  name: string;
-  email?: string;
-  role?: string;
-  avatarUrl?: string;
-};
 
 export type AuthContextType = {
   user: User | null;
@@ -50,9 +44,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: parsed.id ?? parsed._id ?? parsed.email ?? "",
           name: parsed.name ?? parsed.username ?? parsed.email ?? "",
           email: parsed.email ?? undefined,
-          role: parsed.role ?? undefined,
+          role: parsed.role ?? undefined,        // ⬅️ ahora es Role | undefined
           avatarUrl: parsed.avatarUrl ?? undefined,
-        } as User;
+        };
         setUser(normalized);
   // do not expose debug handles in production
       } catch {
@@ -158,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await authFetch("/api/logout", { method: "POST" });
     } catch {
-      // ignore errors on logout
+      // ignore
     }
     setToken(null);
     setUser(null);
